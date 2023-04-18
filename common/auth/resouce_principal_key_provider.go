@@ -96,6 +96,17 @@ func ResourcePrincipalConfigurationProvider() (ConfigurationProviderWithClaimAcc
 
 // OkeWorkloadIdentityConfigurationProvider returns a resource principal configuration provider by OKE Workload Identity
 func OkeWorkloadIdentityConfigurationProvider() (ConfigurationProviderWithClaimAccess, error) {
+	kubernetesServiceAccountToken, err := ioutil.ReadFile(KubernetesServiceAccountTokenPath)
+	if err != nil {
+		err = fmt.Errorf("can not create resource principal, error getting Kubernetes Service Account Token at %s",
+			KubernetesServiceAccountTokenPath)
+		return nil, resourcePrincipalError{err: err}
+	}
+	return OkeWorkloadIdentityConfigurationProviderWithSaToken(kubernetesServiceAccountToken)
+}
+
+// OkeWorkloadIdentityConfigurationProvider returns a resource principal configuration provider by OKE Workload Identity
+func OkeWorkloadIdentityConfigurationProviderWithSaToken(kubernetesServiceAccountToken []byte) (ConfigurationProviderWithClaimAccess, error) {
 	var version string
 	var ok bool
 	if version, ok = os.LookupEnv(ResourcePrincipalVersionEnvVar); !ok {
@@ -104,10 +115,9 @@ func OkeWorkloadIdentityConfigurationProvider() (ConfigurationProviderWithClaimA
 	}
 
 	if version == ResourcePrincipalVersion1_1 || version == ResourcePrincipalVersion2_2 {
-		kubernetesServiceAccountToken, err := ioutil.ReadFile(KubernetesServiceAccountTokenPath)
-		if err != nil {
-			err = fmt.Errorf("can not create resource principal, error getting Kubernetes Service Account Token at %s",
-				KubernetesServiceAccountTokenPath)
+
+		if len(kubernetesServiceAccountToken) == 0 {
+			err := fmt.Errorf("can not create resource principal, Kubernetes Service Account Token is missing")
 			return nil, resourcePrincipalError{err: err}
 		}
 
